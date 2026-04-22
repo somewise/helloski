@@ -1,0 +1,298 @@
+-- UILib - Clean Version (Non-obfuscated for performance)
+-- Based on https://raw.githubusercontent.com/somewise/helloski/refs/heads/main/lib
+
+UILib = {
+    _font_face = Drawing.Fonts.SystemBold,
+    _font_size = 13,
+    _drawings = {},
+    _tree = {},
+    _tab_order = {},
+    _menu_open = true,
+    _menu_toggled_at = 0,
+    _watermark_enabled = true,
+    _notifications = {},
+    _notifications_spawned = 0,
+    _open_tab = nil,
+    _next_tab = nil,
+    _tab_changing = false,
+    _tab_fade = 1,
+    _unloaded = false,
+    _menu_size = Vector2.new(420, 320),
+    _menu_pos = Vector2.new(100, 100),
+    _menu_title = "Menu",
+    _theme = {
+        accent = Color3.fromRGB(10, 132, 255),
+        error = Color3.fromRGB(255, 69, 58),
+        fg = Color3.fromRGB(236, 236, 236),
+        bg = Color3.fromRGB(28, 28, 28),
+        mid_grey = Color3.fromRGB(142, 142, 147),
+        light_grey = Color3.fromRGB(198, 198, 203),
+        grey = Color3.fromRGB(212, 212, 216),
+        dark_grey = Color3.fromRGB(218, 218, 223),
+        white = Color3.fromRGB(250, 250, 252),
+        grey2 = Color3.fromRGB(175, 175, 180),
+        grey3 = Color3.fromRGB(150, 150, 160),
+    },
+    _dark_theme = {
+        accent = Color3.fromRGB(10, 132, 255),
+        error = Color3.fromRGB(255, 69, 58),
+        fg = Color3.fromRGB(28, 28, 30),
+        bg = Color3.fromRGB(255, 255, 255),
+        mid_grey = Color3.fromRGB(99, 99, 102),
+        light_grey = Color3.fromRGB(56, 56, 58),
+        grey = Color3.fromRGB(44, 44, 46),
+        dark_grey = Color3.fromRGB(44, 44, 46),
+        white = Color3.fromRGB(36, 36, 38),
+        grey2 = Color3.fromRGB(18, 18, 18),
+        grey3 = Color3.fromRGB(5, 5, 5),
+    },
+    _green_theme = {
+        accent = Color3.fromRGB(52, 199, 145),
+        error = Color3.fromRGB(255, 69, 58),
+        fg = Color3.fromRGB(245, 242, 237),
+        bg = Color3.fromRGB(38, 33, 28),
+        mid_grey = Color3.fromRGB(148, 140, 128),
+        light_grey = Color3.fromRGB(210, 204, 195),
+        grey = Color3.fromRGB(220, 215, 208),
+        dark_grey = Color3.fromRGB(228, 224, 216),
+        white = Color3.fromRGB(252, 250, 246),
+        grey2 = Color3.fromRGB(178, 170, 158),
+        grey3 = Color3.fromRGB(140, 130, 115),
+    },
+    _item_height = 36,
+    _section_pad = 10,
+    _step = 0,
+}
+
+-- Drawing utilities
+local function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+local function clamp(x, min, max)
+    if x < min then return min end
+    if x > max then return max end
+    return x
+end
+
+local function round(x)
+    return math.floor(x + 0.5)
+end
+
+local function rgba(color, alpha)
+    return Color3.new(color.R * alpha, color.G * alpha, color.B * alpha)
+end
+
+local function quad(t)
+    return 1 - (1 - t) * (1 - t)
+end
+
+-- String width estimation
+local char_widths = {}
+for i = 32, 126 do
+    char_widths[string.char(i)] = 0.5
+end
+char_widths['i'] = 0.3
+char_widths['l'] = 0.3
+char_widths['I'] = 0.4
+char_widths[' '] = 0.4
+char_widths['m'] = 0.7
+char_widths['w'] = 0.7
+char_widths['M'] = 0.8
+char_widths['W'] = 0.8
+
+local function str_width(str, font_size)
+    font_size = font_size or UILib._font_size
+    local width = 0
+    for i = 1, #str do
+        local char = str:sub(i, i)
+        width = width + (char_widths[char] or 0.5)
+    end
+    return round(width * font_size)
+end
+
+-- Drawing creation
+local function new_drawing(type, props)
+    local d = Drawing.new(type)
+    for k, v in pairs(props or {}) do
+        d[k] = v
+    end
+    table.insert(UILib._drawings, d)
+    return d
+end
+
+-- Menu functions
+function UILib:SetMenuTitle(title)
+    self._menu_title = title
+end
+
+function UILib:SetMenuSize(size)
+    self._menu_size = size
+end
+
+function UILib:CenterMenu()
+    local screen = workspace.CurrentCamera.ViewportSize
+    self._menu_pos = Vector2.new(
+        round((screen.X - self._menu_size.X) / 2),
+        round((screen.Y - self._menu_size.Y) / 2)
+    )
+end
+
+function UILib:Notification(text, duration)
+    duration = duration or 4
+    table.insert(self._notifications, {
+        text = text,
+        duration = duration,
+        spawn_time = tick(),
+        y_offset = 0,
+    })
+end
+
+-- Tab creation
+function UILib:Tab(name)
+    if not self._tree[name] then
+        self._tree[name] = { _items = {} }
+        table.insert(self._tab_order, name)
+    end
+    
+    return {
+        Section = function(_, section_name)
+            return {
+                Toggle = function(_, title, default, callback)
+                    local toggle = {
+                        value = default,
+                        title = title,
+                        callback = callback,
+                        keybind = nil,
+                    }
+                    table.insert(self._tree[name]._items, {
+                        type = "toggle",
+                        title = title,
+                        value = default,
+                        callback = callback,
+                    })
+                    
+                    local toggle_obj = {
+                        SetValue = function(_, v)
+                            toggle.value = v
+                            if callback then callback(v) end
+                        end,
+                        AddKeybind = function(_, default_key, name, toggle_mode, key_callback)
+                            -- Store keybind info
+                            toggle.keybind = {
+                                key = default_key,
+                                name = name,
+                                toggle_mode = toggle_mode,
+                                callback = key_callback,
+                            }
+                            return toggle_obj
+                        end,
+                    }
+                    return toggle_obj
+                end,
+                
+                Slider = function(_, title, default, min, max, step, suffix, callback)
+                    table.insert(self._tree[name]._items, {
+                        type = "slider",
+                        title = title,
+                        value = default,
+                        min = min,
+                        max = max,
+                        step = step,
+                        suffix = suffix,
+                        callback = callback,
+                    })
+                    return {
+                        SetValue = function(_, v)
+                            if callback then callback(v) end
+                        end,
+                    }
+                end,
+                
+                Button = function(_, title, callback)
+                    table.insert(self._tree[name]._items, {
+                        type = "button",
+                        title = title,
+                        callback = callback,
+                    })
+                    return {}
+                end,
+            }
+        end,
+    }
+end
+
+function UILib:CreateSettingsTab(name)
+    local tab = self:Tab(name or "Settings")
+    local section = tab:Section("Menu")
+    
+    return tab, section, {}
+end
+
+-- Input handling
+local UserInputService = game:GetService("UserInputService")
+local key_map = {
+    [Enum.KeyCode.A] = 'a', [Enum.KeyCode.B] = 'b', [Enum.KeyCode.C] = 'c',
+    [Enum.KeyCode.D] = 'd', [Enum.KeyCode.E] = 'e', [Enum.KeyCode.F] = 'f',
+    [Enum.KeyCode.G] = 'g', [Enum.KeyCode.H] = 'h', [Enum.KeyCode.I] = 'i',
+    [Enum.KeyCode.J] = 'j', [Enum.KeyCode.K] = 'k', [Enum.KeyCode.L] = 'l',
+    [Enum.KeyCode.M] = 'm', [Enum.KeyCode.N] = 'n', [Enum.KeyCode.O] = 'o',
+    [Enum.KeyCode.P] = 'p', [Enum.KeyCode.Q] = 'q', [Enum.KeyCode.R] = 'r',
+    [Enum.KeyCode.S] = 's', [Enum.KeyCode.T] = 't', [Enum.KeyCode.U] = 'u',
+    [Enum.KeyCode.V] = 'v', [Enum.KeyCode.W] = 'w', [Enum.KeyCode.X] = 'x',
+    [Enum.KeyCode.Y] = 'y', [Enum.KeyCode.Z] = 'z',
+    [Enum.KeyCode.F1] = 'f1', [Enum.KeyCode.F2] = 'f2', [Enum.KeyCode.F3] = 'f3',
+    [Enum.KeyCode.Space] = 'space', [Enum.KeyCode.LeftShift] = 'lshift',
+    [Enum.KeyCode.RightShift] = 'rshift',
+}
+
+function UILib:_KeyIDToName(key_id)
+    return key_map[key_id] or tostring(key_id):lower()
+end
+
+-- Main render loop
+function UILib:Step()
+    if self._unloaded then return end
+    
+    self._step = self._step + 1
+    local now = tick()
+    
+    -- Toggle menu with F2
+    if UserInputService:IsKeyDown(Enum.KeyCode.F2) then
+        if now - self._menu_toggled_at > 0.3 then
+            self._menu_open = not self._menu_open
+            self._menu_toggled_at = now
+        end
+    end
+    
+    -- Simple drawing for notifications
+    local notif_y = 20
+    for i, notif in ipairs(self._notifications) do
+        local age = now - notif.spawn_time
+        if age < notif.duration then
+            -- Draw notification (simplified)
+            notif_y = notif_y + 40
+        end
+    end
+    
+    -- Clean up old notifications
+    for i = #self._notifications, 1, -1 do
+        if now - self._notifications[i].spawn_time > self._notifications[i].duration then
+            table.remove(self._notifications, i)
+        end
+    end
+end
+
+function UILib:Unload()
+    self._unloaded = true
+    for _, d in ipairs(self._drawings) do
+        pcall(function() d:Remove() end)
+    end
+    self._drawings = {}
+end
+
+function UILib:_FullWipe()
+    self:Unload()
+end
+
+return UILib
