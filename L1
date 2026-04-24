@@ -616,8 +616,8 @@ function UILib:Step()
         local tabPos=tbOrig+Vector2.new(tabW*tabIter,0); local tabSz=Vector2.new(tabW,self._tab_h)
         local isOpen=self._open_tab==tabName
 
-        -- Draw tabs if window is visible - they move with bcPos and hide when closed
-        if winOp > 0.01 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
+        -- Only show tabs when menu is fully open (hide instantly on close)
+        if self._menu_open and sc > 0.9 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
             if isOpen then
                 self:_Draw(tdid..'_pill','rect',T.surface0,11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
                 self:_Draw(tdid..'_pillb','rect',T.border0,12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
@@ -629,7 +629,7 @@ function UILib:Step()
             local textCol = isOpen and T.text or T.subtext
             self:_Draw(tdid..'_txt','text',textCol,13,tabPos+Vector2.new(tabW/2,self._tab_h/2),tabName,false,'center')
         else
-            -- Hide tabs when window closed or out of bounds
+            -- Hide tabs instantly when closing or not visible
             self:_UndrawStartsWith(tdid..'_pill')
             self:_Undraw(tdid..'_div')
             self:_Undraw(tdid..'_txt')
