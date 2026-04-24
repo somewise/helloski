@@ -616,18 +616,23 @@ function UILib:Step()
         local tabPos=tbOrig+Vector2.new(tabW*tabIter,0); local tabSz=Vector2.new(tabW,self._tab_h)
         local isOpen=self._open_tab==tabName
 
-        -- Only draw tabs if window is visible enough and within bounds
-        if cardAlpha > 0.01 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
+        -- Only draw tabs if menu is open and within bounds
+        if self._menu_open and sc > 0.5 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
             if isOpen then
-                self:_Draw(tdid..'_pill','rect',lerpC(T.surface0,Color3.new(0,0,0),1-cardAlpha),11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
-                self:_Draw(tdid..'_pillb','rect',lerpC(T.border0,Color3.new(0,0,0),1-cardAlpha),12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
+                self:_Draw(tdid..'_pill','rect',T.surface0,11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
+                self:_Draw(tdid..'_pillb','rect',T.border0,12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
             else self:_UndrawStartsWith(tdid..'_pill') end
             if tabIter~=tabCount-1 and not isOpen then
-                self:_Draw(tdid..'_div','rect',lerpC(T.border1,Color3.new(0,0,0),1-cardAlpha),11,tabPos+Vector2.new(tabW,self._tab_h*0.2),Vector2.new(1,self._tab_h*0.6),true)
+                self:_Draw(tdid..'_div','rect',T.border1,11,tabPos+Vector2.new(tabW,self._tab_h*0.2),Vector2.new(1,self._tab_h*0.6),true)
             else self:_Undraw(tdid..'_div') end
-            -- Tab text with opacity
-            local textCol = lerpC(isOpen and T.text or T.subtext,Color3.new(0,0,0),1-cardAlpha)
+            -- Tab text
+            local textCol = isOpen and T.text or T.subtext
             self:_Draw(tdid..'_txt','text',textCol,13,tabPos+Vector2.new(tabW/2,self._tab_h/2),tabName,false,'center')
+        else
+            -- Hide tabs when closing
+            self:_UndrawStartsWith(tdid..'_pill')
+            self:_Undraw(tdid..'_div')
+            self:_Undraw(tdid..'_txt')
         end
 
         if not isOpen and clickFrame and self:_IsMouseWithinBounds(tabPos,tabSz) then
