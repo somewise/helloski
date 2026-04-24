@@ -616,8 +616,8 @@ function UILib:Step()
         local tabPos=tbOrig+Vector2.new(tabW*tabIter,0); local tabSz=Vector2.new(tabW,self._tab_h)
         local isOpen=self._open_tab==tabName
 
-        -- Show tabs only when fully open (sc>=0.99), hide instantly when closing
-        if self._menu_open and sc > 0.99 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
+        -- Show tabs when mostly open (sc>0.95), hide instantly when closing
+        if self._menu_open and sc > 0.95 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
             if isOpen then
                 self:_Draw(tdid..'_pill','rect',T.surface0,11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
                 self:_Draw(tdid..'_pillb','rect',T.border0,12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
