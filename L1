@@ -616,20 +616,20 @@ function UILib:Step()
         local tabPos=tbOrig+Vector2.new(tabW*tabIter,0); local tabSz=Vector2.new(tabW,self._tab_h)
         local isOpen=self._open_tab==tabName
 
-        -- Draw tabs if window is visible enough - they move with bcPos automatically
+        -- Draw tabs if window is visible - fade with winOp
         if winOp > 0.01 and tabPos.X >= bcPos.X and tabPos.X + tabW <= bcPos.X + bcSize.x then
+            local fade = 1-winOp  -- 0 when open, 1 when closing
             if isOpen then
-                self:_Draw(tdid..'_pill','rect',T.surface0,11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
-                self:_Draw(tdid..'_pillb','rect',T.border0,12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
+                self:_Draw(tdid..'_pill','rect',lerpC(T.surface0,Color3.new(0,0,0),fade),11,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),true,CR-2)
+                self:_Draw(tdid..'_pillb','rect',lerpC(T.border0,Color3.new(0,0,0),fade),12,tabPos+Vector2.new(3,3),tabSz-Vector2.new(6,6),false,CR-2)
             else self:_UndrawStartsWith(tdid..'_pill') end
             if tabIter~=tabCount-1 and not isOpen then
-                self:_Draw(tdid..'_div','rect',T.border1,11,tabPos+Vector2.new(tabW,self._tab_h*0.2),Vector2.new(1,self._tab_h*0.6),true)
+                self:_Draw(tdid..'_div','rect',lerpC(T.border1,Color3.new(0,0,0),fade),11,tabPos+Vector2.new(tabW,self._tab_h*0.2),Vector2.new(1,self._tab_h*0.6),true)
             else self:_Undraw(tdid..'_div') end
-            -- Tab text
-            local textCol = isOpen and T.text or T.subtext
+            -- Tab text fades too
+            local textCol = lerpC(isOpen and T.text or T.subtext,Color3.new(0,0,0),fade)
             self:_Draw(tdid..'_txt','text',textCol,13,tabPos+Vector2.new(tabW/2,self._tab_h/2),tabName,false,'center')
         else
-            -- Hide tabs when not visible
             self:_UndrawStartsWith(tdid..'_pill')
             self:_Undraw(tdid..'_div')
             self:_Undraw(tdid..'_txt')
